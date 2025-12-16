@@ -1,0 +1,42 @@
+# 모델 설정
+model:
+  name: "sales_prediction_model"
+  architecture: "hybrid"  # hybrid: 시계열 + 텍스트 특성 결합
+  
+  # 시계열 모델 설정
+  time_series:
+    sequence_length: 12  # 과거 12개월 사용
+    lstm_units: [64, 32]
+    dropout_rate: 0.2
+    
+  # 텍스트 특성 모델 설정
+  text_features:
+    embedding_dim: 50
+    max_words: 1000
+    dense_units: [32, 16]
+    
+  # 결합 레이어
+  combined:
+    dense_units: [64, 32, 16]
+    output_units: 1
+    
+  # 학습 설정
+  training:
+    epochs: 100
+    batch_size: 32
+    validation_split: 0.2
+    early_stopping_patience: 10
+    learning_rate: 0.001
+
+# 데이터 설정
+data:
+  input_data_path: "data/input_data/"
+  sales_data_path: "data/sales/"
+  model_save_path: "models/"
+  prediction_save_path: "predictions/"
+  
+# 자동화 설정
+automation:
+  auto_retrain: true  # 새 데이터가 들어오면 자동 재학습
+  min_data_months: 6  # 최소 학습 데이터 개월 수
+
