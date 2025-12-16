@@ -5,6 +5,7 @@
 
 import argparse
 import sys
+import numpy as np
 from src.pipeline import AutomatedPipeline
 
 
@@ -26,6 +27,12 @@ def main():
         action='store_true',
         help='예측만 수행 (학습 생략)'
     )
+    parser.add_argument(
+        '--next-month',
+        type=str,
+        default=None,
+        help='예측할 월 지정 (YYYY-MM 형식, 기본값: 다음 달)'
+    )
     
     args = parser.parse_args()
     
@@ -44,7 +51,27 @@ def main():
         # 예측
         if len(X_time) > 0:
             last_sequence = X_time[-1:]
-            last_word_features = X_word[-1:]
+            
+            # 다음 달 단어-점수 데이터 로드
+            if args.next_month:
+                # 지정된 월의 데이터 사용
+                from src.data_loader import DataLoader
+                input_data = pipeline.data_loader.load_input_data(month=args.next_month)
+                if args.next_month in input_data:
+                    word_scores = input_data[args.next_month]
+                    word_columns = [col.replace('word_score_', '') for col in data_info['word_columns']]
+                    feature_vector = [word_scores.get(word, 0.0) for word in word_columns]
+                    last_word_features = np.array([feature_vector])
+                else:
+                    print(f"경고: {args.next_month}의 단어-점수 데이터가 없습니다.")
+                    last_word_features = X_word[-1:]
+            else:
+                # 자동으로 다음 달 데이터 로드
+                last_word_features = pipeline._load_next_month_word_features(data_info['word_columns'])
+                if last_word_features is None:
+                    print("경고: 다음 달 단어-점수 데이터가 없습니다. 마지막 달 데이터를 사용합니다.")
+                    last_word_features = X_word[-1:]
+            
             prediction = pipeline.predict_next_month(last_sequence, last_word_features)
             print(f"\n다음 달 예측 매출: {prediction:,.2f}")
     else:

@@ -282,12 +282,19 @@ class AutomatedPipeline:
         else:
             print("기존 모델 사용")
         
-        # 다음 달 예측 (마지막 시퀀스와 다음 달 단어 점수 사용)
-        # 실제로는 다음 달 단어 점수를 입력으로 받아야 함
-        # 여기서는 마지막 데이터로 예시
+        # 다음 달 예측
+        # 다음 달의 단어-점수 데이터를 로드하여 예측
         if len(X_time) > 0:
             last_sequence = X_time[-1:].copy()
-            last_word_features = X_word[-1:].copy()
+            
+            # 다음 달의 단어-점수 데이터 로드
+            next_month_word_features = self._load_next_month_word_features(data_info['word_columns'])
+            
+            if next_month_word_features is None:
+                print("경고: 다음 달 단어-점수 데이터가 없습니다. 마지막 달 데이터를 사용합니다.")
+                last_word_features = X_word[-1:].copy()
+            else:
+                last_word_features = next_month_word_features
             
             prediction = self.predict_next_month(last_sequence, last_word_features)
             
@@ -313,4 +320,44 @@ class AutomatedPipeline:
             return result
         
         return {'status': 'no_data'}
+    
+    def _load_next_month_word_features(self, word_columns: List[str]) -> Optional[np.ndarray]:
+        """
+        다음 달의 단어-점수 데이터 로드
+        
+        Args:
+            word_columns: 단어 컬럼명 리스트
+            
+        Returns:
+            다음 달 단어 특성 배열 또는 None
+        """
+        from datetime import datetime, timedelta
+        import calendar
+        
+        # 다음 달 계산
+        today = datetime.now()
+        if today.month == 12:
+            next_month = datetime(today.year + 1, 1, 1)
+        else:
+            next_month = datetime(today.year, today.month + 1, 1)
+        
+        next_month_str = next_month.strftime('%Y-%m')
+        
+        # 다음 달 단어-점수 데이터 로드
+        input_data = self.data_loader.load_input_data(month=next_month_str)
+        
+        if not input_data or next_month_str not in input_data:
+            return None
+        
+        # 단어-점수 데이터를 벡터로 변환
+        word_scores = input_data[next_month_str]
+        feature_vector = []
+        
+        for word_col in word_columns:
+            # 컬럼명에서 단어 추출 (word_score_제거)
+            word = word_col.replace('word_score_', '')
+            score = word_scores.get(word, 0.0)
+            feature_vector.append(score)
+        
+        return np.array([feature_vector]) if feature_vector else None
 
