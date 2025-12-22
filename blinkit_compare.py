@@ -9,7 +9,19 @@ warnings.filterwarnings('ignore')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import platform
 from datetime import datetime
+
+# 운영체제별 폰트 설정
+if platform.system() == 'Darwin':  # 맥
+    plt.rc('font', family='AppleGothic')
+elif platform.system() == 'Windows':  # 윈도우
+    plt.rc('font', family='Malgun Gothic')
+elif platform.system() == 'Linux':  # 리눅스 (코랩 등)
+    plt.rc('font', family='NanumGothic')
+
+# 마이너스 기호 깨짐 방지
+plt.rcParams['axes.unicode_minus'] = False
 
 from src.blinkit.pipeline import BlinkitPipeline
 
