@@ -221,64 +221,61 @@ class YouTubeYtDlpCrawler:
         except Exception:
             return ""
 
-    def search_keyword_by_months(self, keyword: str, year: int, months: Sequence[int], max_results_per_month: int) -> List[VideoItem]:
-        """월별로 영상 수집 (yt-dlp는 조회수 정렬 제한적)"""
+    def search_keyword_by_year(self, keyword: str, year: int, max_results: int = 50) -> List[VideoItem]:
+        """연도별로 영상 수집 (yt-dlp - 날짜 필터 없이 검색 후 후처리)"""
         if not self.available:
             return []
         results: List[VideoItem] = []
-        for month in months:
-            try:
-                # 월의 시작일과 끝일 계산
-                start_date = f"{year}{month:02d}01"
-                if month == 12:
-                    end_date = f"{year + 1}0101"
-                else:
-                    end_date = f"{year}{month + 1:02d}01"
-                
-                query = f"ytsearch{max_results_per_month}:{keyword}"
-                cmd = [
-                    "yt-dlp",
-                    "--dump-json",
-                    "--no-download",
-                    "--skip-download",
-                    "--match-filters",
-                    f"upload_date>={start_date} & upload_date<{end_date}",
-                    query,
-                ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                if proc.returncode != 0:
-                    print(f"[yt-dlp] {keyword} {year}년 {month}월 실패: {proc.stderr.strip()}")
+        try:
+            # 더 많은 결과 가져오기 (날짜 필터 없이)
+            query = f"ytsearch{max_results}:{keyword}"
+            cmd = [
+                "yt-dlp",
+                "--dump-json",
+                "--no-download",
+                "--skip-download",
+                "--flat-playlist",
+                query,
+            ]
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if proc.returncode != 0:
+                print(f"  [오류] {proc.stderr.strip()[:100]}")
+                return []
+            
+            for line in proc.stdout.splitlines():
+                if not line.strip():
                     continue
-                month_results = []
-                for line in proc.stdout.splitlines():
-                    if not line.strip():
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    month_results.append(
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                
+                upload_date = data.get("upload_date", "")
+                # 연도 필터링 (Python에서 후처리)
+                if upload_date and upload_date.startswith(str(year)):
+                    results.append(
                         VideoItem(
                             keyword=keyword,
                             title=data.get("title", ""),
-                            upload_date=self._format_date(data.get("upload_date")),
+                            upload_date=self._format_date(upload_date),
                             view_count=int(data.get("view_count", 0) or 0),
                             description=data.get("description", "") or "",
-                            url=data.get("webpage_url", ""),
+                            url=data.get("webpage_url") or f"https://www.youtube.com/watch?v={data.get('id', '')}",
                             source="ytdlp",
-                            channel_title=data.get("uploader", ""),
+                            channel_title=data.get("uploader", "") or data.get("channel", ""),
                             duration=str(data.get("duration")) if data.get("duration") else None,
                         )
                     )
-                # 조회수 순 정렬 후 상위 N개만 추가
-                month_results.sort(key=lambda x: x.view_count, reverse=True)
-                results.extend(month_results[:max_results_per_month])
-                print(f"  └─ {year}년 {month}월: {len(month_results[:max_results_per_month])}개 수집")
-                time.sleep(self.delay)
-            except subprocess.TimeoutExpired:
-                print(f"[yt-dlp] {keyword} {year}년 {month}월 타임아웃")
-            except Exception as exc:
-                print(f"[yt-dlp] {keyword} {year}년 {month}월 오류: {exc}")
+            
+            # 조회수 순 정렬
+            results.sort(key=lambda x: x.view_count, reverse=True)
+            print(f"  └─ {year}년: {len(results)}개 수집")
+            time.sleep(self.delay)
+            
+        except subprocess.TimeoutExpired:
+            print(f"  [타임아웃]")
+        except Exception as exc:
+            print(f"  [오류] {exc}")
         return results
 
 
@@ -312,13 +309,12 @@ def main():
                 all_items.extend(api_crawler.search_keyword_by_months(kw, year, MONTHS, MAX_RESULTS_PER_MONTH))
     else:
         print("API 키가 없습니다. yt-dlp 모드로 실행합니다.")
-        print(f"수집 대상: {YEARS[0]}~{YEARS[-1]}년, 월별 {MAX_RESULTS_PER_MONTH}개씩")
+        print(f"수집 대상: {YEARS[0]}~{YEARS[-1]}년, 연도별 최대 50개씩 (조회수 순)")
         ytdlp = YouTubeYtDlpCrawler(delay=1.0)
         for kw in KEYWORDS:
             print(f"\n[yt-dlp] '{kw}' 검색 중...")
             for year in YEARS:
-                print(f"  {year}년:")
-                all_items.extend(ytdlp.search_keyword_by_months(kw, year, MONTHS, MAX_RESULTS_PER_MONTH))
+                all_items.extend(ytdlp.search_keyword_by_year(kw, year, max_results=50))
 
     # 중복 제거 (같은 URL)
     seen_urls = set()
