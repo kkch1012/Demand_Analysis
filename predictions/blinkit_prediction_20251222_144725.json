@@ -1,0 +1,25 @@
+{
+  "status": "success",
+  "training": {
+    "epochs_trained": 200,
+    "final_loss": 5.120710849761963,
+    "final_val_loss": 5.072240829467773,
+    "final_mae": 0.7467947006225586,
+    "final_val_mae": 0.7274839282035828
+  },
+  "evaluation": {
+    "MAE": 222723.25408333336,
+    "MSE": 73718663146.27379,
+    "RMSE": 271511.8103255801,
+    "R2": -3.7766545326066225,
+    "MAPE": 102.58034093632796
+  },
+  "prediction": {
+    "last_month": "2024-11",
+    "last_value": 68157.65,
+    "predicted_value": 793032.3125,
+    "change_percent": 1063.5264896897122,
+    "timestamp": "2025-12-22T14:47:25.777820"
+  },
+  "execution_time": "0:00:45.283563"
+}

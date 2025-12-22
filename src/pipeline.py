@@ -11,7 +11,7 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 
 from src.data_loader import DataLoader
 from src.feature_engineering import FeatureEngineer
@@ -360,4 +360,3 @@ class AutomatedPipeline:
             feature_vector.append(score)
         
         return np.array([feature_vector]) if feature_vector else None
-

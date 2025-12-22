@@ -1,0 +1,47 @@
+# Blinkit 수요 예측 모델 설정
+model:
+  name: "blinkit_demand_model"
+  architecture: "hybrid"  # hybrid: 시계열 + 카테고리 특성 결합
+  
+  # 시계열 모델 설정
+  time_series:
+    sequence_length: 6  # 과거 6개월 사용
+    lstm_units: [64, 32]
+    dropout_rate: 0.3
+    
+  # 카테고리/추가 특성 모델 설정
+  category_features:
+    dense_units: [64, 32]
+    dropout_rate: 0.3
+    
+  # 결합 레이어
+  combined:
+    dense_units: [128, 64, 32]
+    dropout_rate: 0.3
+    output_units: 1
+    
+  # 학습 설정
+  training:
+    epochs: 200
+    batch_size: 16
+    validation_split: 0.2
+    early_stopping_patience: 15
+    learning_rate: 0.001
+
+# 데이터 설정
+data:
+  raw_data_path: "data/blinkit_master_data.csv"
+  processed_data_path: "data/processed/"
+  model_save_path: "models/"
+  prediction_save_path: "predictions/"
+  
+# 예측 대상 설정
+prediction:
+  target: "total_sales"  # total_sales, order_count, avg_order_value
+  aggregation: "monthly"  # monthly, weekly, daily
+  
+# 자동화 설정
+automation:
+  auto_retrain: true
+  min_data_months: 4  # 최소 학습 데이터 개월 수
+
